@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CatLux · QR sheet</title>
+<style>
+body{font:16px system-ui,sans-serif;margin:16px;color:#1c2a24}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+input{font-size:16px;padding:10px;border:1px solid #ccc;border-radius:8px}
+#url{flex:1 1 280px}
+button{font-size:16px;padding:10px 16px;border:0;border-radius:8px;background:#1d5a43;color:#fff;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.card{border:2px solid #1d5a43;border-radius:14px;padding:14px;text-align:center;break-inside:avoid}
+.card h2{margin:0 0 2px;font-size:30px}
+.card p{margin:2px 0 8px;font-size:13px}
+.qr{display:flex;justify-content:center;margin:8px 0}
+.small{font-size:12px;color:#555}
+@media print{.ctl{display:none}body{margin:0}}
+</style>
+</head>
+<body>
+<div class="ctl">
+  <input id="url" value="https://YOUR-SITE.web.app/" aria-label="Site address">
+  <input id="n" type="number" min="1" max="99" value="20" style="width:90px" aria-label="Number of tables">
+  <button id="go">Make QR codes</button>
+  <button id="pr">Print</button>
+</div>
+<div class="grid" id="g"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+function make(){
+  var base=document.getElementById("url").value.trim().replace(/#.*$/,"").replace(/\/?$/,"/");
+  var n=Math.min(99,Math.max(1,parseInt(document.getElementById("n").value,10)||1));
+  var g=document.getElementById("g");g.innerHTML="";
+  for(var i=1;i<=n;i++){
+    var c=document.createElement("div");c.className="card";
+    c.innerHTML="<h2>Table "+i+"</h2><p>Scan to call your waiter<br>Escanea para llamar al mesero</p><div class='qr' id='q"+i+"'></div><div class='small'>Waiter · Drinks · Check</div>";
+    g.appendChild(c);
+    new QRCode(document.getElementById("q"+i),{text:base+"#t-"+i,width:170,height:170,correctLevel:QRCode.CorrectLevel.M});
+  }
+}
+document.getElementById("go").onclick=make;
+document.getElementById("pr").onclick=function(){window.print()};
+make();
+</script>
+</body>
+</html>
