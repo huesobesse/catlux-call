@@ -22,7 +22,7 @@ button{font-size:16px;padding:10px 16px;border:0;border-radius:8px;background:#1
 <body>
 <div class="ctl">
   <input id="url" value="https://YOUR-SITE.web.app/" aria-label="Site address">
-  <input id="n" type="number" min="1" max="99" value="20" style="width:90px" aria-label="Number of tables">
+  <input id="n" type="number" min="1" max="99" value="44" style="width:90px" aria-label="Number of tables">
   <button id="go">Make QR codes</button>
   <button id="pr">Print</button>
 </div>
@@ -35,7 +35,7 @@ function make(){
   var g=document.getElementById("g");g.innerHTML="";
   for(var i=1;i<=n;i++){
     var c=document.createElement("div");c.className="card";
-    c.innerHTML="<h2>Table "+i+"</h2><p>Scan to call your waiter<br>Escanea para llamar al mesero</p><div class='qr' id='q"+i+"'></div><div class='small'>Waiter · Drinks · Check</div>";
+    c.innerHTML="<h2>Mesa "+i+"</h2><p style='font-size:17px;font-weight:600;margin:2px 0'>Escanea para llamar al mesero</p><p style='font-size:12px;color:#555;margin:0 0 8px'>Table "+i+" · Scan to call your waiter</p><div class='qr' id='q"+i+"'></div><div class='small'>Mesero · Bebidas · Cuenta</div>";
     g.appendChild(c);
     new QRCode(document.getElementById("q"+i),{text:base+"#t-"+i,width:170,height:170,correctLevel:QRCode.CorrectLevel.M});
   }

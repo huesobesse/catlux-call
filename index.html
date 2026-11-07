@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CatLux · Table call</title>
+<title>CatLux · Llamada a mesa</title>
 <style>
 :root{--bg:#f3f1ea;--card:#fff;--tx:#1c2a24;--mut:#66726b;--bd:#ddd9cc;--pri:#1d5a43;--w:#2d6bd0;--b:#c4741a;--c:#7a3db0;--ok:#1f8a4c;--late:#fbe3e0}
 @media (prefers-color-scheme:dark){:root{--bg:#121916;--card:#1c2521;--tx:#eef2ef;--mut:#97a39b;--bd:#2c3731;--pri:#4fb587;--w:#6ea2f5;--b:#e8a24d;--c:#b88ae6;--ok:#4fd083;--late:#3a1f1d}}
@@ -47,8 +47,14 @@ const firebaseConfig = {
   appId: "1:842726521109:web:78ab0d5cd0762347a0111c"
 };
 /* ===== 2. EDIT YOUR ZONES: [name, first table, last table] ===== */
-const ZONES = [["Dining", 1, 8], ["Pool", 9, 14], ["Terrace", 15, 20]];
+const ZONES = [["Salón", 1, 10], ["Comedor", 11, 20], ["Piscina", 21, 26], ["Deck 1", 27, 32], ["Deck 2", 33, 38], ["Deck 3", 39, 44]];
 const COOLDOWN_MS = 60000, LATE_MS = 180000;
+/* ===== 3. WAITERS: login email -> areas they see. Anyone NOT listed sees all areas (bar / managers). =====
+   Example lines (remove the // to use):
+   "juan@catlux.bo": ["Deck 1", "Deck 2"],
+   "maria@catlux.bo": ["Salón", "Comedor"],   */
+const STAFF = {
+};
 
 const TYPES = {
   w: { en: "Call waiter", es: "Llamar al mesero", c: "w" },
@@ -68,7 +74,7 @@ function route() {
   const h = location.hash.slice(1), m = h.match(/^t-(\d{1,2})$/);
   if (h === "staff") return staff();
   if (m && +m[1] >= 1) return guest(+m[1]);
-  app.innerHTML = '<h1>CatLux · Table call</h1><p class="sub">Scan the QR code on your table to call a waiter.</p>';
+  app.innerHTML = '<h1>CatLux · Llamada a mesa</h1><p class="sub">Escanee el código QR de su mesa para llamar al mesero.</p>';
 }
 addEventListener("hashchange", route);
 
@@ -76,11 +82,11 @@ addEventListener("hashchange", route);
 function guest(t) {
   let msg = "", err = "";
   const draw = () => {
-    app.innerHTML = `<h1>Table ${t}</h1><p class="sub">${zoneOf(t)} · Country Club</p>` +
+    app.innerHTML = `<h1>Mesa ${t}</h1><p class="sub">${zoneOf(t)} · Country Club</p>` +
       (msg ? `<div class="toast">${msg}</div>` : "") + (err ? `<p class="err">${err}</p>` : "") +
       Object.keys(TYPES).map(k => {
         const wait = Date.now() - (+localStorage.getItem("cd" + t + k) || 0) < COOLDOWN_MS;
-        return `<button class="big b${TYPES[k].c}" data-k="${k}" ${wait ? "disabled" : ""}>${TYPES[k].en}<small>${TYPES[k].es}${wait ? " · sent, please wait / enviado" : ""}</small></button>`;
+        return `<button class="big b${TYPES[k].c}" data-k="${k}" ${wait ? "disabled" : ""}>${TYPES[k].es}<small>${TYPES[k].en}${wait ? " · enviado, espere / sent, please wait" : ""}</small></button>`;
       }).join("");
     app.querySelectorAll("[data-k]").forEach(b => b.onclick = () => send(b.dataset.k));
   };
@@ -89,8 +95,8 @@ function guest(t) {
     err = "";
     try {
       await addDoc(collection(db, "calls"), { table: t, type: k, ts: Date.now(), done: false });
-      msg = `${TYPES[k].en} sent ✓ · Enviado. Someone is on the way.`;
-    } catch (e) { err = "Could not send. Please wave to a waiter."; }
+      msg = `${TYPES[k].es}: enviado ✓ Alguien va en camino. (${TYPES[k].en} sent)`;
+    } catch (e) { err = "No se pudo enviar. Por favor llame al mesero. (Could not send.)"; }
     draw(); setTimeout(() => { msg = ""; draw(); }, 5000); setTimeout(draw, COOLDOWN_MS + 200);
   };
   draw();
@@ -105,34 +111,37 @@ function beep() {
 }
 const ago = ts => { const s = Math.max(0, Math.floor((Date.now() - ts) / 1000)); return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + (s % 60) + "s"; };
 
+const myZones = () => { const m = STAFF[((user && user.email) || "").toLowerCase()]; return Array.isArray(m) ? m : ZONES.map(z => z[0]); };
+const mine = t => myZones().includes(zoneOf(t));
+const zoneChips = () => myZones().length > 1 ? ["All", ...myZones()] : [];
 function staff() {
   if (!user) return login();
   unsub = onSnapshot(query(collection(db, "calls"), orderBy("ts", "desc"), limit(150)), snap => {
     calls = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const fresh = calls.some(c => !c.done && !seen[c.id]);
+    const fresh = calls.some(c => !c.done && !seen[c.id] && mine(c.table));
     calls.forEach(c => seen[c.id] = 1);
     if (!first && fresh) beep(); first = false;
     drawStaff();
-  }, () => { app.innerHTML = '<p class="err">No access. Sign in again.</p>'; });
+  }, () => { app.innerHTML = '<p class="err">Sin acceso. Ingrese de nuevo.</p>'; });
   tick = setInterval(drawStaff, 1000);
 }
 function drawStaff() {
-  const open = calls.filter(c => !c.done && (zone === "All" || zoneOf(c.table) === zone)).sort((a, b) => a.ts - b.ts);
-  app.innerHTML = `<div class="bar"><h1>Pending calls</h1><div><button class="chip ${sound ? "on" : ""}" id="snd">${sound ? "🔔 Sound on" : "🔕 Sound off"}</button> <button class="chip" id="out">Sign out</button></div></div>` +
-    `<div class="chips">${["All", ...ZONES.map(z => z[0])].map(z => `<button class="chip ${zone === z ? "on" : ""}" data-z="${esc(z)}">${esc(z)}</button>`).join("")}</div>` +
+  const open = calls.filter(c => !c.done && mine(c.table) && (zone === "All" || zoneOf(c.table) === zone)).sort((a, b) => a.ts - b.ts);
+  app.innerHTML = `<div class="bar"><h1>Llamadas pendientes</h1><div><button class="chip ${sound ? "on" : ""}" id="snd">${sound ? "🔔 Sonido activado" : "🔕 Sonido apagado"}</button> <button class="chip" id="out">Cerrar sesión</button></div></div>` +
+    `<div class="chips">${zoneChips().map(z => `<button class="chip ${zone === z ? "on" : ""}" data-z="${esc(z)}">${z === "All" ? "Todos" : esc(z)}</button>`).join("")}</div>` +
     (open.length ? open.map(c => { const T = TYPES[c.type] || TYPES.w;
-      return `<div class="row ${T.c} ${Date.now() - c.ts > LATE_MS ? "late" : ""}"><div class="n">${+c.table}</div><div class="i"><div>${T.en}</div><span>${zoneOf(c.table)} · waiting ${ago(c.ts)}</span></div><button class="btn" data-id="${esc(c.id)}">Done</button></div>`; }).join("")
-      : '<div class="empty">No pending calls ✓</div>');
+      return `<div class="row ${T.c} ${Date.now() - c.ts > LATE_MS ? "late" : ""}"><div class="n">${+c.table}</div><div class="i"><div>${T.es}</div><span>${zoneOf(c.table)} · esperando ${ago(c.ts)}</span></div><button class="btn" data-id="${esc(c.id)}">Listo</button></div>`; }).join("")
+      : '<div class="empty">Sin llamadas pendientes ✓</div>');
   app.querySelectorAll("[data-z]").forEach(b => b.onclick = () => { zone = b.dataset.z; drawStaff(); });
   app.querySelectorAll("[data-id]").forEach(b => b.onclick = () => updateDoc(doc(db, "calls", b.dataset.id), { done: true }));
   document.getElementById("snd").onclick = () => { sound = !sound; if (sound) beep(); drawStaff(); };
   document.getElementById("out").onclick = () => signOut(auth);
 }
 function login() {
-  app.innerHTML = `<h1>Staff sign in</h1><p class="sub">CatLux · Country Club</p><input id="em" type="email" placeholder="Email" autocomplete="username"><input id="pw" type="password" placeholder="Password" autocomplete="current-password"><button class="btn" id="go">Sign in</button><p class="err" id="er"></p>`;
+  app.innerHTML = `<h1>Ingreso del personal</h1><p class="sub">CatLux · Country Club</p><input id="em" type="email" placeholder="Correo" autocomplete="username"><input id="pw" type="password" placeholder="Contraseña" autocomplete="current-password"><button class="btn" id="go">Ingresar</button><p class="err" id="er"></p>`;
   document.getElementById("go").onclick = async () => {
     try { await signInWithEmailAndPassword(auth, document.getElementById("em").value.trim(), document.getElementById("pw").value); }
-    catch (e) { document.getElementById("er").textContent = "Wrong email or password."; }
+    catch (e) { document.getElementById("er").textContent = "Correo o contraseña incorrectos."; }
   };
 }
 onAuthStateChanged(auth, u => { user = u; route(); });
