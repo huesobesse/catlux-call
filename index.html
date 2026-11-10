@@ -30,6 +30,14 @@ input{font-size:16px;padding:12px;border:1px solid var(--bd);border-radius:10px;
 .i{flex:1}.i div{font-weight:600}.i span{font-size:13px;color:var(--mut)}
 .bar{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .empty{text-align:center;color:var(--mut);padding:30px 0}
+
+.menu{margin-top:28px}.menu h2{font-size:22px;margin:0 0 8px}
+.menu h3{font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--pri);margin:22px 0 6px;padding-top:6px;border-top:1px solid var(--bd)}
+.mchips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;position:sticky;top:0;background:var(--bg);z-index:2}
+.mchips .chip{white-space:nowrap}
+.mi{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dotted var(--bd)}
+.mi b{white-space:nowrap}.md{font-size:13px;color:var(--mut);margin:-4px 0 6px}
+.note{font-size:12px;color:var(--mut);margin:16px 0 30px}
 </style>
 </head>
 <body>
@@ -54,6 +62,22 @@ const COOLDOWN_MS = 60000, LATE_MS = 180000;
    "juan@catlux.bo": ["Deck 1", "Deck 2"],
    "maria@catlux.bo": ["Salón", "Comedor"],   */
 const STAFF = {
+  "treicy@catlux.bo":   ["Salón"],
+  "araceli@catlux.bo":  ["Salón"],
+  "johana@catlux.bo":   ["Salón"],
+  "alba@catlux.bo":     ["Comedor"],
+  "meliza@catlux.bo":   ["Comedor"],
+  "ria@catlux.bo":      ["Comedor"],
+  "fernando@catlux.bo": ["Piscina"],
+  "ariel@catlux.bo":    ["Piscina"],
+  "bryan@catlux.bo":    ["Deck 1"],
+  "limbert@catlux.bo":  ["Deck 1"],
+  "iris@catlux.bo":     ["Deck 2"],
+  "madai@catlux.bo":    ["Deck 2"],
+  "naire@catlux.bo":    ["Deck 3"],
+  "jesus@catlux.bo":    ["Deck 3"],
+  "hermes@catlux.bo":   ["Piscina", "Deck 1"],
+  "wendy@catlux.bo":    ["Salón"]
 };
 
 const TYPES = {
@@ -68,11 +92,32 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 
 let unsub = null, calls = [], zone = "All", sound = false, user = null, actx = null, seen = {}, first = true, tick = null;
 
+const MENU = [
+ {c:"Entradas", i:[["Haba con Quesillo",15],["Choclo con Quesillo",15]]},
+ {c:"Sopas", i:[["Sopa de Maní",15]]},
+ {c:"Pescados", i:[["Chicharrón de Surubí",70],["Cabañitas de Surubí",70],["Trucha a la Mantequilla",75],["Trucha a la Romana",75],["Trucha en Salsa Thai",75],["Ceviche",40]]},
+ {c:"Platos fuertes", i:[["Filet Mignon",80],["Steak a la Pimienta",80],["Lomo con Champiñones",70],["Lomo con Puré y Chorellana",70],["Lomo Montado",70],["Lomo Borracho",70],["Lomo Country",70],["Milanesa Napolitana de Res",65],["Milanesa Country",70],["Milanesa de Res",60]]},
+ {c:"Pollo", i:[["Milanesa Napolitana de Pollo",60],["Milanesa de Pollo",55],["Pollo a la Plancha",55],["Pique Macho de Pollo",55],["Chanka de Pollo",35],["Chicken Finger",40],["Alitas de Pollo",45],["Pipocas de Pollo",35]]},
+ {c:"Nacionales", i:[["Picante de Lengua",65],["Picante de Pollo",65],["Picante de Lapping",65],["Pique Mixto",70],["Pique Macho de Lomo",75],["Pique Macho de Lapping",65]]},
+ {c:"Comida rápida", i:[["Hamburguesa con Queso",29],["Hamburguesa con Queso y Tocino",33],["Sándwich Philadelphia",35],["Sándwich Club",34],["Sándwich de Lomo",30],["Súper Burrito",35]]},
+ {c:"Especialidad de la casa", i:[["Pique CatLux",145,"Para 3 personas"]]},
+ {c:"Pastas", i:[["Tallarín Bolognesa",45],["Tallarín con Albóndigas",45],["Fettuccine Alfredo con Pollo",55]]},
+ {c:"Ensaladas", i:[["Ensalada César con Pollo",35],["Ensalada Jardinera con Pollo",40],["Ensalada Jardinera con Atún",45]]},
+ {c:"Cervezas", i:[["Huari",27],["Paceña",25],["Corona",25],["Stella Artois",25],["Balde de Corona (6 unidades)",120]]},
+ {c:"Gaseosas", i:[["Coca-Cola",10],["Coca-Cola Zero",10],["Fanta",10],["Sprite",10],["Pepsi",10],["Pepsi Black",10],["Guaraná",10]]},
+ {c:"Botellas", i:[["Fernet",230],["Singani",230],["Gin Flamboyant",280],["Whisky Etiqueta Roja",500],["Whisky Etiqueta Negra",700]]}
+];
+const menuHTML = () => `<div class="menu"><h2>Carta</h2><div class="mchips">${MENU.map((m, i) => `<button class="chip" data-m="${i}">${m.c}</button>`).join("")}</div>` +
+  MENU.map((m, i) => `<section id="m${i}"><h3>${m.c}</h3>${m.i.map(x => `<div class="mi"><span>${x[0]}</span><b>Bs ${x[1]}</b></div>${x[2] ? `<div class="md">${x[2]}</div>` : ""}`).join("")}</section>`).join("") +
+  `<p class="note">Precios en bolivianos (Bs) · Consulte por menús para eventos y servicio de catering</p></div>`;
+const bindMenu = () => app.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { const e = document.getElementById("m" + b.dataset.m); if (e) e.scrollIntoView({ behavior: "smooth", block: "start" }); });
+function menuPage() { app.innerHTML = '<h1>CatLux · Carta</h1><p class="sub">Sabores de autor · Servicio de excelencia</p>' + menuHTML(); bindMenu(); }
 function route() {
   if (unsub) { unsub(); unsub = null; }
   clearInterval(tick);
   const h = location.hash.slice(1), m = h.match(/^t-(\d{1,2})$/);
   if (h === "staff") return staff();
+  if (h === "menu") return menuPage();
   if (m && +m[1] >= 1) return guest(+m[1]);
   app.innerHTML = '<h1>CatLux · Llamada a mesa</h1><p class="sub">Escanee el código QR de su mesa para llamar al mesero.</p>';
 }
@@ -82,13 +127,16 @@ addEventListener("hashchange", route);
 function guest(t) {
   let msg = "", err = "";
   const draw = () => {
+    const y = window.scrollY;
     app.innerHTML = `<h1>Mesa ${t}</h1><p class="sub">${zoneOf(t)} · Country Club</p>` +
       (msg ? `<div class="toast">${msg}</div>` : "") + (err ? `<p class="err">${err}</p>` : "") +
       Object.keys(TYPES).map(k => {
         const wait = Date.now() - (+localStorage.getItem("cd" + t + k) || 0) < COOLDOWN_MS;
         return `<button class="big b${TYPES[k].c}" data-k="${k}" ${wait ? "disabled" : ""}>${TYPES[k].es}<small>${TYPES[k].en}${wait ? " · enviado, espere / sent, please wait" : ""}</small></button>`;
-      }).join("");
+      }).join("") + menuHTML();
+    bindMenu();
     app.querySelectorAll("[data-k]").forEach(b => b.onclick = () => send(b.dataset.k));
+    window.scrollTo(0, y);
   };
   const send = async k => {
     try { localStorage.setItem("cd" + t + k, Date.now()); } catch (e) {}
